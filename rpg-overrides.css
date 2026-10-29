@@ -1,0 +1,9 @@
+
+/* RPG guild palette overrides */
+.lobby-banner{display:grid;grid-template-columns:auto 1fr;align-items:center;gap:20px;border-color:#b78a45;background:linear-gradient(110deg,#30251e,#211a17 65%,#45301c)}
+.audio-controls{grid-column:2;text-align:right;margin-top:-55px}
+.quest-giver{border-color:#715638;background:#2a211c}
+.guild-choices{grid-template-columns:repeat(4,1fr)}
+.guild-choice{background:#2a211c;border-color:#715638;padding:14px}
+.guild-choice.active,.guild-choice:hover{border-color:#e3b65a;background:#493321}
+@media(max-width:760px){.lobby-banner{display:block}.audio-controls{margin-top:16px;text-align:left}.guild-choices{grid-template-columns:1fr}}

@@ -1,0 +1,2 @@
+/* Navigation scale only; colors remain inherited */
+.guild-choices{gap:18px!important;margin:28px 0 10px!important}.guild-choice{min-height:112px!important;padding:24px 20px!important}.guild-choice span{font-size:38px!important}.guild-choice strong{font-size:21px!important}.guild-choice small{font-size:14px!important}@media(max-width:760px){.guild-choices{gap:12px!important}.guild-choice{min-height:94px!important;padding:18px 14px!important}.guild-choice strong{font-size:18px!important}}
