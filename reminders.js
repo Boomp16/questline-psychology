@@ -17,11 +17,20 @@ function submitReminderRequest(action, email) {
     toast('Pengingat belum tersambung. Admin perlu memasukkan URL Apps Script.');
     return;
   }
+  let responseFrame = document.querySelector('#questline-reminder-response');
+  if (!responseFrame) {
+    responseFrame = document.createElement('iframe');
+    responseFrame.id = 'questline-reminder-response';
+    responseFrame.name = 'questline-reminder-response';
+    responseFrame.title = 'Questline reminder response';
+    responseFrame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;bottom:0;border:0;opacity:0;pointer-events:none';
+    document.body.appendChild(responseFrame);
+  }
   const form = document.createElement('form');
   form.method = 'post';
   form.action = REMINDER_SCRIPT_URL;
-  form.target = '_blank';
-  form.rel = 'noopener';
+  form.target = responseFrame.name;
+  form.style.display = 'none';
   [['action', action], ['email', email], ['clientKey', reminderClientKey()]].forEach(([name, value]) => {
     const input = document.createElement('input');
     input.type = 'hidden';
@@ -53,13 +62,15 @@ if (reminderSettingsForm) {
       return;
     }
     if (enabled && email && previous && previous.email === email && previous.status === 'pending') {
-      toast('Cek email dan tekan tombol konfirmasi untuk mengaktifkan pengingat.');
+      submitReminderRequest('subscribe', email);
+      toast('Request konfirmasi dikirim. Cek inbox dan Spam.');
       return;
     }
 
     if (enabled && email) {
       localStorage.setItem('qlReminderSubscription', JSON.stringify({email: email, status: 'pending'}));
       submitReminderRequest('subscribe', email);
+      toast('Request konfirmasi dikirim. Cek inbox dan Spam.');
       return;
     }
 
