@@ -10,7 +10,34 @@
 .frame-sun{--frame-color:#fff09a;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#8c4b14 0 4px,#f5a623 4px 7px,#fff09a 7px 10px)!important}
 .frame-shadow{--frame-color:#a78bfa;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#130d29 0 4px,#4b347d 4px 7px,#b8a4ff 7px 9px)!important}
 .profile-frame{border-width:7px!important;padding:5px!important;box-shadow:0 0 0 2px #100b1c,0 0 16px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)!important}
-.hero-avatar.frame-gold,.hero-avatar.frame-bronze,.hero-avatar.frame-ember,.hero-avatar.frame-frost,.hero-avatar.frame-void,.hero-avatar.frame-leaf,.hero-avatar.frame-iron,.hero-avatar.frame-rose,.hero-avatar.frame-sun,.hero-avatar.frame-shadow{border-width:4px!important;border-color:var(--frame-color)!important;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color) 60%,transparent)}
+/* Keep the Command Center avatar circular; purchased frame rings sit outside it. */
+.hero-avatar{
+  box-sizing:content-box!important;
+  width:92px!important;
+  height:92px!important;
+  flex:0 0 92px!important;
+  padding:0!important;
+  border-radius:50%!important;
+  overflow:visible!important;
+  background:transparent!important;
+  display:grid!important;
+  place-items:center!important;
+}
+.hero-avatar .hero-profile-photo{
+  display:block!important;
+  width:100%!important;
+  height:100%!important;
+  max-width:none!important;
+  max-height:none!important;
+  object-fit:cover!important;
+  border-radius:50%!important;
+}
+.hero-avatar.frame-gold,.hero-avatar.frame-bronze,.hero-avatar.frame-ember,.hero-avatar.frame-frost,.hero-avatar.frame-void,.hero-avatar.frame-leaf,.hero-avatar.frame-iron,.hero-avatar.frame-rose,.hero-avatar.frame-sun,.hero-avatar.frame-shadow{
+  border:5px solid var(--frame-color)!important;
+  background-clip:padding-box!important;
+  box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color) 60%,transparent)!important;
+}
+
 .frame-swatch{width:64px;height:64px;margin:0 auto 10px;border:7px solid var(--frame-color,#a78bfa);border-radius:50%;background-color:#160d24;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)}
 .title-swatch{color:#ffe29a;font-size:38px;text-shadow:0 0 14px #b68cff}
 /* The frame shrink-wraps the avatar; its ring follows the rendered photo edge. */
