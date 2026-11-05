@@ -10,13 +10,14 @@
 .frame-sun{--frame-color:#fff09a;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#8c4b14 0 4px,#f5a623 4px 7px,#fff09a 7px 10px)!important}
 .frame-shadow{--frame-color:#a78bfa;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#130d29 0 4px,#4b347d 4px 7px,#b8a4ff 7px 9px)!important}
 .profile-frame{border-width:7px!important;padding:5px!important;box-shadow:0 0 0 2px #100b1c,0 0 16px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)!important}
-/* Command Center only: the circular image fills its frame exactly; shop preview is untouched. */
+/* Command Center only: patterned 5px ring; shop preview rules remain separate. */
 .hero-avatar.frame-gold,.hero-avatar.frame-bronze,.hero-avatar.frame-ember,.hero-avatar.frame-frost,.hero-avatar.frame-void,.hero-avatar.frame-leaf,.hero-avatar.frame-iron,.hero-avatar.frame-rose,.hero-avatar.frame-sun,.hero-avatar.frame-shadow{
+  position:relative!important;
   box-sizing:border-box!important;
   width:102px!important;
   height:102px!important;
   flex:0 0 102px!important;
-  padding:5px!important;
+  padding:0!important;
   border:0!important;
   border-radius:50%!important;
   background:var(--hero-frame-pattern)!important;
@@ -32,7 +33,17 @@
 .hero-avatar.frame-rose{--hero-frame-pattern:repeating-linear-gradient(135deg,#571e40 0 3px,#c64d86 3px 5px,#ffd1e2 5px 7px)}
 .hero-avatar.frame-sun{--hero-frame-pattern:repeating-linear-gradient(45deg,#8c4b14 0 3px,#f5a623 3px 5px,#fff09a 5px 7px)}
 .hero-avatar.frame-shadow{--hero-frame-pattern:repeating-linear-gradient(90deg,#130d29 0 3px,#4b347d 3px 5px,#b8a4ff 5px 7px)}
-.hero-avatar .hero-profile-photo{position:relative;z-index:1;box-sizing:border-box;width:100%!important;height:100%!important;max-width:none!important;max-height:none!important;margin:0!important;object-fit:cover!important;border-radius:50%!important}
+.hero-avatar.frame-gold .hero-profile-photo,.hero-avatar.frame-bronze .hero-profile-photo,.hero-avatar.frame-ember .hero-profile-photo,.hero-avatar.frame-frost .hero-profile-photo,.hero-avatar.frame-void .hero-profile-photo,.hero-avatar.frame-leaf .hero-profile-photo,.hero-avatar.frame-iron .hero-profile-photo,.hero-avatar.frame-rose .hero-profile-photo,.hero-avatar.frame-sun .hero-profile-photo,.hero-avatar.frame-shadow .hero-profile-photo{
+  position:absolute!important;
+  inset:5px!important;
+  width:calc(100% - 10px)!important;
+  height:calc(100% - 10px)!important;
+  max-width:none!important;
+  max-height:none!important;
+  margin:0!important;
+  object-fit:cover!important;
+  border-radius:50%!important;
+}
 
 .frame-swatch{width:64px;height:64px;margin:0 auto 10px;border:7px solid var(--frame-color,#a78bfa);border-radius:50%;background-color:#160d24;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)}
 .title-swatch{color:#ffe29a;font-size:38px;text-shadow:0 0 14px #b68cff}
