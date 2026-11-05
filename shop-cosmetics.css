@@ -10,45 +10,37 @@
 .frame-sun{--frame-color:#fff09a;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#8c4b14 0 4px,#f5a623 4px 7px,#fff09a 7px 10px)!important}
 .frame-shadow{--frame-color:#a78bfa;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#130d29 0 4px,#4b347d 4px 7px,#b8a4ff 7px 9px)!important}
 .profile-frame{border-width:7px!important;padding:5px!important;box-shadow:0 0 0 2px #100b1c,0 0 16px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)!important}
-/* Command Center: compact patterned ring around the same circular photo; shop preview stays unchanged. */
-.hero-avatar{
-  box-sizing:content-box!important;
-  width:92px!important;
-  height:92px!important;
-  flex:0 0 92px!important;
-  padding:0!important;
-  border:2px solid #b78a45!important;
-  border-radius:50%!important;
-  overflow:visible!important;
-  display:grid!important;
-  place-items:center!important;
-  position:relative!important;
-}
-.hero-avatar .hero-profile-photo{
-  display:block!important;
-  width:100%!important;
-  height:100%!important;
-  max-width:none!important;
-  max-height:none!important;
-  object-fit:cover!important;
-  border-radius:50%!important;
-}
+/* Command Center only: frame pattern is a ring outside the avatar image. Shop preview rules remain untouched. */
 .hero-avatar.frame-gold,.hero-avatar.frame-bronze,.hero-avatar.frame-ember,.hero-avatar.frame-frost,.hero-avatar.frame-void,.hero-avatar.frame-leaf,.hero-avatar.frame-iron,.hero-avatar.frame-rose,.hero-avatar.frame-sun,.hero-avatar.frame-shadow{
-  border:5px solid transparent!important;
-  background-origin:border-box!important;
-  background-clip:border-box!important;
-  box-shadow:0 0 0 2px #100b1c,0 0 10px color-mix(in srgb,var(--frame-color) 55%,transparent)!important;
+  border:0!important;
+  background:transparent!important;
+  box-shadow:none!important;
 }
-.hero-avatar.frame-gold{background:linear-gradient(135deg,#5b3d0b,#ffd36a 48%,#fff1ad 52%,#9c681b) border-box!important}
-.hero-avatar.frame-bronze{background:repeating-linear-gradient(135deg,#3c2114 0 3px,#c6814c 3px 5px,#f0bd83 5px 7px) border-box!important}
-.hero-avatar.frame-ember{background:repeating-linear-gradient(45deg,#451508 0 3px,#e23b22 3px 5px,#ffad42 5px 7px) border-box!important}
-.hero-avatar.frame-frost{background:repeating-linear-gradient(90deg,#124767 0 3px,#7de8f4 3px 5px,#e2ffff 5px 7px) border-box!important}
-.hero-avatar.frame-void{background:repeating-linear-gradient(135deg,#170b35 0 3px,#6227b5 3px 5px,#d88cff 5px 7px) border-box!important}
-.hero-avatar.frame-leaf{background:repeating-linear-gradient(45deg,#193b21 0 3px,#579c44 3px 5px,#c4ec8a 5px 7px) border-box!important}
-.hero-avatar.frame-iron{background:repeating-linear-gradient(90deg,#343f4b 0 3px,#8795a3 3px 5px,#e2e8ef 5px 7px) border-box!important}
-.hero-avatar.frame-rose{background:repeating-linear-gradient(135deg,#571e40 0 3px,#c64d86 3px 5px,#ffd1e2 5px 7px) border-box!important}
-.hero-avatar.frame-sun{background:repeating-linear-gradient(45deg,#8c4b14 0 3px,#f5a623 3px 5px,#fff09a 5px 7px) border-box!important}
-.hero-avatar.frame-shadow{background:repeating-linear-gradient(90deg,#130d29 0 3px,#4b347d 3px 5px,#b8a4ff 5px 7px) border-box!important}
+.hero-avatar.frame-gold::before,.hero-avatar.frame-bronze::before,.hero-avatar.frame-ember::before,.hero-avatar.frame-frost::before,.hero-avatar.frame-void::before,.hero-avatar.frame-leaf::before,.hero-avatar.frame-iron::before,.hero-avatar.frame-rose::before,.hero-avatar.frame-sun::before,.hero-avatar.frame-shadow::before{
+  content:"";
+  position:absolute;
+  inset:-5px;
+  padding:5px;
+  border-radius:50%;
+  background:var(--hero-frame-pattern);
+  -webkit-mask:linear-gradient(#fff 0 0) content-box,linear-gradient(#fff 0 0);
+  -webkit-mask-composite:xor;
+  mask-composite:exclude;
+  pointer-events:none;
+  z-index:2;
+  filter:drop-shadow(0 0 5px color-mix(in srgb,var(--frame-color) 55%,transparent));
+}
+.hero-avatar.frame-gold{--hero-frame-pattern:linear-gradient(135deg,#5b3d0b,#ffd36a 48%,#fff1ad 52%,#9c681b)}
+.hero-avatar.frame-bronze{--hero-frame-pattern:repeating-linear-gradient(135deg,#3c2114 0 3px,#c6814c 3px 5px,#f0bd83 5px 7px)}
+.hero-avatar.frame-ember{--hero-frame-pattern:repeating-linear-gradient(45deg,#451508 0 3px,#e23b22 3px 5px,#ffad42 5px 7px)}
+.hero-avatar.frame-frost{--hero-frame-pattern:repeating-linear-gradient(90deg,#124767 0 3px,#7de8f4 3px 5px,#e2ffff 5px 7px)}
+.hero-avatar.frame-void{--hero-frame-pattern:repeating-linear-gradient(135deg,#170b35 0 3px,#6227b5 3px 5px,#d88cff 5px 7px)}
+.hero-avatar.frame-leaf{--hero-frame-pattern:repeating-linear-gradient(45deg,#193b21 0 3px,#579c44 3px 5px,#c4ec8a 5px 7px)}
+.hero-avatar.frame-iron{--hero-frame-pattern:repeating-linear-gradient(90deg,#343f4b 0 3px,#8795a3 3px 5px,#e2e8ef 5px 7px)}
+.hero-avatar.frame-rose{--hero-frame-pattern:repeating-linear-gradient(135deg,#571e40 0 3px,#c64d86 3px 5px,#ffd1e2 5px 7px)}
+.hero-avatar.frame-sun{--hero-frame-pattern:repeating-linear-gradient(45deg,#8c4b14 0 3px,#f5a623 3px 5px,#fff09a 5px 7px)}
+.hero-avatar.frame-shadow{--hero-frame-pattern:repeating-linear-gradient(90deg,#130d29 0 3px,#4b347d 3px 5px,#b8a4ff 5px 7px)}
+.hero-avatar .hero-profile-photo{position:relative;z-index:1}
 
 .frame-swatch{width:64px;height:64px;margin:0 auto 10px;border:7px solid var(--frame-color,#a78bfa);border-radius:50%;background-color:#160d24;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)}
 .title-swatch{color:#ffe29a;font-size:38px;text-shadow:0 0 14px #b68cff}
