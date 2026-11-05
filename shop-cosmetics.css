@@ -1,0 +1,16 @@
+/* Distinct colour, shape and pattern options for purchasable avatar frames. */
+.frame-gold{--frame-color:#ffd36a;border-color:var(--frame-color)!important;background:linear-gradient(135deg,#5b3d0b,#ffd36a 48%,#fff1ad 52%,#9c681b)!important}
+.frame-bronze{--frame-color:#c6814c;border-color:var(--frame-color)!important;background:repeating-linear-gradient(135deg,#3c2114 0 5px,#c6814c 5px 8px,#f0bd83 8px 10px)!important}
+.frame-ember{--frame-color:#ff7043;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#451508 0 5px,#e23b22 5px 8px,#ffad42 8px 10px)!important}
+.frame-frost{--frame-color:#9bf6ff;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#124767 0 5px,#7de8f4 5px 8px,#e2ffff 8px 10px)!important}
+.frame-void{--frame-color:#b68cff;border-color:var(--frame-color)!important;background:repeating-linear-gradient(135deg,#170b35 0 4px,#6227b5 4px 7px,#d88cff 7px 9px)!important}
+.frame-leaf{--frame-color:#9bd477;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#193b21 0 5px,#579c44 5px 8px,#c4ec8a 8px 10px)!important}
+.frame-iron{--frame-color:#c4d0dc;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#343f4b 0 6px,#8795a3 6px 9px,#e2e8ef 9px 11px)!important}
+.frame-rose{--frame-color:#ff9dbf;border-color:var(--frame-color)!important;background:repeating-linear-gradient(135deg,#571e40 0 5px,#c64d86 5px 8px,#ffd1e2 8px 10px)!important}
+.frame-sun{--frame-color:#fff09a;border-color:var(--frame-color)!important;background:repeating-linear-gradient(45deg,#8c4b14 0 4px,#f5a623 4px 7px,#fff09a 7px 10px)!important}
+.frame-shadow{--frame-color:#a78bfa;border-color:var(--frame-color)!important;background:repeating-linear-gradient(90deg,#130d29 0 4px,#4b347d 4px 7px,#b8a4ff 7px 9px)!important}
+.profile-frame{border-width:7px!important;padding:5px!important;box-shadow:0 0 0 2px #100b1c,0 0 16px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)!important}
+.hero-avatar.frame-gold,.hero-avatar.frame-bronze,.hero-avatar.frame-ember,.hero-avatar.frame-frost,.hero-avatar.frame-void,.hero-avatar.frame-leaf,.hero-avatar.frame-iron,.hero-avatar.frame-rose,.hero-avatar.frame-sun,.hero-avatar.frame-shadow{border-width:4px!important;border-color:var(--frame-color)!important;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color) 60%,transparent)}
+.frame-swatch{width:64px;height:64px;margin:0 auto 10px;border:7px solid var(--frame-color,#a78bfa);border-radius:50%;background-color:#160d24;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)}
+.title-swatch{color:#ffe29a;font-size:38px;text-shadow:0 0 14px #b68cff}
+.shop-item{min-height:220px}
