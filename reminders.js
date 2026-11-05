@@ -105,12 +105,12 @@ if (reminderSettingsForm) {
       return;
     }
 
-    if (previous) {
+  if (!enabled && previous) {
       event.preventDefault();
       event.stopImmediatePropagation();
       localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify({email: previous.email, status: 'unsubscribing'}));
       submitReminderRequest('unsubscribe', previous.email);
-      setReminderStatus('Permintaan berhenti dikirim. Setelah selesai, aktifkan lagi untuk meminta konfirmasi baru.');
+      setReminderStatus('Unsubscribe request sent. Re-enable only after you see the unsubscribe confirmation page.');
     }
   }, true);
 }
