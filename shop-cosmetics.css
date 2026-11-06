@@ -50,8 +50,7 @@
 /* Center the shop photo inside its frame; keep the 144px portrait and existing outer frame look. */
 .profile-frame{
   position:relative!important;
-  display:grid!important;
-  place-items:center!important;
+  display:block!important;
   box-sizing:border-box!important;
   width:170px!important;
   height:170px!important;
@@ -60,8 +59,7 @@
   max-width:none!important;
   max-height:none!important;
   margin:0 auto 10px!important;
-  padding:5px!important;
-  overflow:visible!important;
+  padding:0!important;
   border-radius:50%!important;
   line-height:0!important;
 }
