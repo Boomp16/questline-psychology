@@ -50,7 +50,8 @@
 /* Center the shop photo inside its frame; keep the 144px portrait and existing outer frame look. */
 .profile-frame{
   position:relative!important;
-  display:block!important;
+  display:grid!important;
+  place-items:center!important;
   box-sizing:border-box!important;
   width:170px!important;
   height:170px!important;
@@ -64,11 +65,11 @@
   line-height:0!important;
 }
 .profile-frame img,.profile-frame .profile-photo{
-  position:absolute!important;
-  top:50%!important;
-  left:50%!important;
-  transform:translate(-50%,-50%)!important;
+  position:static!important;
+  inset:auto!important;
   display:block!important;
+  place-self:center!important;
+  transform:none!important;
   width:144px!important;
   height:144px!important;
   min-width:144px!important;
@@ -77,6 +78,6 @@
   max-height:none!important;
   margin:0!important;
   object-fit:cover!important;
-  object-position:50% 50%!important;
+  object-position:center center!important;
   border-radius:50%!important;
 }
