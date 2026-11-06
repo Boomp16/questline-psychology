@@ -47,25 +47,38 @@
 
 .frame-swatch{width:64px;height:64px;margin:0 auto 10px;border:7px solid var(--frame-color,#a78bfa);border-radius:50%;background-color:#160d24;box-shadow:0 0 0 2px #100b1c,0 0 14px color-mix(in srgb,var(--frame-color,#a78bfa) 55%,transparent)}
 .title-swatch{color:#ffe29a;font-size:38px;text-shadow:0 0 14px #b68cff}
-/* The frame shrink-wraps the avatar; its ring follows the rendered photo edge. */
+/* Center the shop photo inside its frame; keep the 144px portrait and existing outer frame look. */
 .profile-frame{
-  display:inline-flex!important;
-  box-sizing:content-box!important;
-  width:max-content!important;
-  height:max-content!important;
+  position:relative!important;
+  display:grid!important;
+  place-items:center!important;
+  box-sizing:border-box!important;
+  width:170px!important;
+  height:170px!important;
+  min-width:170px!important;
+  min-height:170px!important;
   max-width:none!important;
+  max-height:none!important;
   margin:0 auto 10px!important;
-  padding:6px!important;
+  padding:5px!important;
   overflow:visible!important;
   border-radius:50%!important;
   line-height:0!important;
 }
 .profile-frame img,.profile-frame .profile-photo{
+  position:static!important;
+  inset:auto!important;
   display:block!important;
-  width:min(144px,42vw)!important;
-  height:min(144px,42vw)!important;
+  justify-self:center!important;
+  align-self:center!important;
+  flex:none!important;
+  width:144px!important;
+  height:144px!important;
+  min-width:144px!important;
+  min-height:144px!important;
   max-width:none!important;
   max-height:none!important;
+  margin:0!important;
   object-fit:cover!important;
   border-radius:50%!important;
 }
