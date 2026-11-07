@@ -100,8 +100,20 @@ window.questlineProgressUpdated = queueEmailBackup;
 function openProgressDialog() { if (progressDialog && !progressDialog.open) progressDialog.showModal(); }
 function closeProgressDialog() { if (progressDialog?.open) progressDialog.close(); }
 if (progressOpenBtn) progressOpenBtn.addEventListener('click', openProgressDialog);
-if (progressCloseBtn) progressCloseBtn.addEventListener('click', closeProgressDialog);
-if (localChoice) localChoice.addEventListener('click', () => { localStorage.setItem(dismissedKey,'1'); closeProgressDialog(); });
+if (progressCloseBtn) progressCloseBtn.addEventListener('click', event => {
+  event.preventDefault();
+  localStorage.setItem(dismissedKey, '1');
+  closeProgressDialog();
+});
+function skipEmailBackup(event) {
+  event.preventDefault();
+  event.stopImmediatePropagation();
+  localStorage.setItem(dismissedKey, '1');
+  if (progressDialog?.open) progressDialog.close();
+}
+document.addEventListener('click', event => {
+  if (event.target.closest('#cloudPromptLocal')) skipEmailBackup(event);
+}, true);
 if (progressDialog) progressDialog.addEventListener('click', event => { if (event.target === progressDialog) closeProgressDialog(); });
 if (localStorage.getItem(dismissedKey) !== '1') openProgressDialog();
 
