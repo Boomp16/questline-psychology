@@ -27,6 +27,7 @@ let auth = null;
 let db = null;
 let suppressCloudWrite = false;
 let saveTimer = null;
+let signInInProgress = false;
 
 function sayStatus(message) {
   if (statusEl) statusEl.textContent = message;
@@ -93,12 +94,15 @@ function queueCloudSave() {
 
 async function startGoogleSignIn(button) {
   if (!auth) {
-    sayStatus('Google sign-in is not initialized. Check Firebase configuration and reload.');
+    sayStatus('Google sign-in is not initialized. Check Firebase setup and reload.');
     return;
   }
-  if (button) button.disabled = true;
-  if (promptSignInBtn) promptSignInBtn.disabled = true;
-  if (signInBtn) signInBtn.disabled = true;
+  if (signInInProgress) {
+    sayStatus('Google sign-in is already opening. If its window closed, allow pop-ups and try again.');
+    return;
+  }
+  signInInProgress = true;
+  if (button) button.setAttribute('aria-busy','true');
   sayStatus('Opening Google sign-in…');
   try {
     await signInWithPopup(auth, new GoogleAuthProvider());
@@ -107,11 +111,17 @@ async function startGoogleSignIn(button) {
   } catch (error) {
     console.error('Google sign-in failed:', error.code, error.message, error);
     const code = error && error.code ? ' (' + error.code + ')' : '';
-    sayStatus('Google sign-in did not complete' + code + '. Check popup blocking and Firebase authorized domains, then retry.');
+    const hint = error && error.code === 'auth/unauthorized-domain'
+      ? ' Add the address bar domain to Firebase Authentication → Settings → Authorized domains.'
+      : error && error.code === 'auth/popup-blocked'
+        ? ' Allow pop-ups for this site and retry.'
+        : error && error.code === 'auth/web-storage-unsupported'
+          ? ' Brave privacy settings may block the sign-in window; allow cross-site cookies for Firebase or use the direct app link below.'
+          : ' Use the direct app link below to retry outside Blogger.';
+    sayStatus('Google sign-in did not complete' + code + '.' + hint);
   } finally {
-    if (button) button.disabled = false;
-    if (promptSignInBtn) promptSignInBtn.disabled = false;
-    if (signInBtn) signInBtn.disabled = false;
+    signInInProgress = false;
+    if (button) button.removeAttribute('aria-busy');
   }
 }
 
