@@ -135,8 +135,7 @@ if (signInBtn) signInBtn.addEventListener('click', event => {
 });
 
 if (!hasFirebaseConfig) {
-  sayStatus('Cloud sign-in is not configured yet. Continue without signing in, or ask the site admin to finish Firebase setup.');
-  openCloudPrompt();
+  sayStatus('Cloud sign-in is not configured yet. Continue using Questline locally, or open Save progress to check the setup.');
 } else {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -150,7 +149,6 @@ if (!hasFirebaseConfig) {
       if (signInBtn) signInBtn.hidden = false;
       if (signOutBtn) signOutBtn.hidden = true;
       sayStatus('Not signed in. Progress stays in this browser only.');
-      if (!sessionStorage.getItem('qlCloudPromptDismissed')) openCloudPrompt();
       return;
     }
     sessionStorage.setItem('qlCloudPromptDismissed', '1');
