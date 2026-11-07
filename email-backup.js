@@ -19,6 +19,7 @@ const dismissedKey = 'qlEmailBackupPromptDismissed';
 const pendingRequests = new Map();
 let backupTimer = 0;
 let restoring = false;
+let awaitingEmailCode = false;
 
 function getAccount() {
   try { return JSON.parse(localStorage.getItem(EMAIL_BACKUP_STATE) || 'null'); }
@@ -93,7 +94,6 @@ function requestService(action, extra = {}) {
   document.body.appendChild(form);
   form.submit();
   form.remove();
-  setTimeout(() => frame.remove(), 60000);
 }
 function queueEmailBackup() {
   const account = getAccount();
@@ -141,10 +141,13 @@ window.addEventListener('message', event => {
   pendingRequests.delete(nonce);
   pending.frame.remove();
   if (result.status === 'codeSent') {
+    awaitingEmailCode = true;
     if (codeStep) codeStep.hidden = false;
+    if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
     if (codeInput) codeInput.focus();
     setProgressStatus('Kode dikirim ke email. Masukkan 6 digit tersebut.');
   } else if (result.status === 'verified') {
+    awaitingEmailCode = false;
     const email = result.email;
     localStorage.setItem(EMAIL_BACKUP_STATE, JSON.stringify({email,status:'verified',clients:[getClientKey()]}));
     const settings = JSON.parse(localStorage.getItem('qlSettings') || '{}');
@@ -154,7 +157,7 @@ window.addEventListener('message', event => {
     if (reminderEmail) reminderEmail.value = email;
     if (emailInput) emailInput.readOnly = true;
     if (codeStep) codeStep.hidden = true;
-    if (primaryEmailAction) primaryEmailAction.hidden = true;
+    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
     setProgressStatus('Email aktif. Cadangan pertama sedang dikirim; berikutnya maksimal sekali sehari.');
     localStorage.removeItem('qlLastEmailBackupAt');
     queueEmailBackup();
@@ -170,6 +173,11 @@ window.addEventListener('message', event => {
     clearTimeout(backupTimer);
     backupTimer = setTimeout(queueEmailBackup, EMAIL_BACKUP_INTERVAL);
   } else {
+    if (action === 'requestEmailCode') {
+      if (codeStep) codeStep.hidden = false;
+      if (codeInput) codeInput.disabled = false;
+      if (primaryEmailAction) primaryEmailAction.textContent = 'Kirim ulang kode';
+    }
     setProgressStatus(result.message || 'Permintaan belum berhasil. Coba lagi.');
   }
 });
@@ -180,7 +188,7 @@ if (primaryEmailAction) {
     primaryEmailAction.classList.add('is-pressed');
     setTimeout(() => primaryEmailAction.classList.remove('is-pressed'), 220);
     const account = getAccount();
-    if (account?.status === 'verified') {
+    if (awaitingEmailCode || account?.status === 'verified') {
       const code = codeInput?.value.trim() || '';
       if (!/^\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
       setProgressStatus('Memeriksa kode…');
@@ -190,6 +198,10 @@ if (primaryEmailAction) {
     const email = emailInput?.value.trim().toLowerCase() || '';
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
     setProgressStatus('Mengirim kode verifikasi…');
+    if (codeStep) codeStep.hidden = false;
+    if (codeInput) codeInput.disabled = false;
+    primaryEmailAction.textContent = 'Konfirmasi kode';
+    awaitingEmailCode = true;
     requestService('requestEmailCode');
   };
   primaryEmailAction.addEventListener('click', activateEmailBackup);
@@ -225,9 +237,8 @@ if (account?.email && emailInput) {
   emailInput.value = account.email;
   if (account.status === 'verified' && (account.clients || []).includes(getClientKey())) {
     emailInput.readOnly = true;
-    if (primaryEmailAction) primaryEmailAction.textContent = 'Cadangan email aktif';
-    if (primaryEmailAction) primaryEmailAction.disabled = true;
     if (codeStep) codeStep.hidden = true;
+    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
     setProgressStatus('Cadangan email aktif untuk ' + account.email + '.');
   }
 }
