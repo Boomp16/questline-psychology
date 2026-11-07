@@ -92,31 +92,29 @@ function queueCloudSave() {
   }, 800);
 }
 
-async function startGoogleSignIn(button) {
+function startGoogleSignIn(button) {
   if (!auth) {
     sayStatus('Google sign-in is not initialized. Check Firebase setup and reload.');
     return;
   }
   if (signInInProgress) {
-    sayStatus('Google sign-in is already opening. If its window closed, allow pop-ups and try again.');
+    sayStatus('Google sign-in is already opening.');
     return;
   }
-  signInInProgress = true;
-  if (button) button.setAttribute('aria-busy','true');
-  sayStatus('Redirecting to Google sign-in…');
-  try {
-    await signInWithRedirect(auth, new GoogleAuthProvider());
-  } catch (error) {
-    console.error('Google sign-in redirect failed:', error.code, error.message, error);
-    const code = error && error.code ? ' (' + error.code + ')' : '';
-    const hint = error && error.code === 'auth/unauthorized-domain'
-      ? ' Add the address bar domain to Firebase Authentication → Settings → Authorized domains.'
-      : ' Check the Firebase API key and Authentication setup, then try again.';
-    sayStatus('Google sign-in did not start' + code + '.' + hint);
-    signInInProgress = false;
-    if (button) button.removeAttribute('aria-busy');
+
+  // Open synchronously from the click so the browser treats this as user-initiated.
+  const signInTab = window.open('about:blank', '_blank');
+  if (!signInTab) {
+    sayStatus('The sign-in tab was blocked. Allow pop-ups for this site, then try again.');
+    return;
   }
+
+  const signInUrl = new URL(window.location.href);
+  signInUrl.searchParams.set('qlGoogleSignIn', '1');
+  signInTab.location.replace(signInUrl.toString());
+  sayStatus('Google sign-in opened in a new tab. Complete sign-in there, then return here.');
 }
+
 
 if (promptSignInBtn) promptSignInBtn.addEventListener('click', event => {
   event.preventDefault();
@@ -139,6 +137,18 @@ if (!hasFirebaseConfig) {
     const code = error && error.code ? ' (' + error.code + ')' : '';
     sayStatus('Google sign-in did not complete' + code + '. Check Firebase Authentication settings and try again.');
   });
+
+  const signInUrl = new URL(window.location.href);
+  if (signInUrl.searchParams.get('qlGoogleSignIn') === '1') {
+    signInUrl.searchParams.delete('qlGoogleSignIn');
+    window.history.replaceState({}, '', signInUrl.toString());
+    sayStatus('Redirecting this tab to Google sign-in…');
+    signInWithRedirect(auth, new GoogleAuthProvider()).catch(error => {
+      console.error('Google sign-in redirect failed:', error.code, error.message, error);
+      const code = error && error.code ? ' (' + error.code + ')' : '';
+      sayStatus('Google sign-in did not start' + code + '. Check Firebase setup and allow redirects for this site.');
+    });
+  }
 
   if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
 
