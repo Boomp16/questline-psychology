@@ -73,8 +73,8 @@ function requestService(action, extra = {}) {
     setProgressStatus('Layanan email tidak merespons. Coba lagi.');
   },30000);
   pendingRequests.set(nonce,{action,source:frame.contentWindow,frame,timer});
-  document.body.appendChild(frame);
   const form = document.createElement('form');
+  form.method='post'; form.action=EMAIL_BACKUP_URL; form.target=frame.name; form.style.display='none';
   for (const [name,value] of Object.entries({action,email,clientKey:getClientKey(),nonce,...extra})) {
     const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=typeof value==='string'?value:JSON.stringify(value); form.appendChild(input);
   }
@@ -82,9 +82,8 @@ function requestService(action, extra = {}) {
   document.body.appendChild(form);
   form.submit();
   form.remove();
-  setProgressStatus(action==='requestEmailCode'?'Mengirim kode verifikasi… Kolom kode tetap tersedia di bawah.':'Memeriksa kode…');
+  setProgressStatus(action==='requestEmailCode'?'Permintaan dikirim. Kolom kode tetap tersedia di bawah.':'Memeriksa kode…');
 }
-
 
 function handleServiceResponse(action, result) {
   if (!result) { setProgressStatus('Layanan email memberi respons kosong. Coba lagi.'); return; }
