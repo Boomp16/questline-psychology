@@ -60,44 +60,74 @@ function setProgressStatus(message) {
 function requestService(action, extra = {}) {
   const email = emailInput?.value.trim().toLowerCase() || getAccount()?.email || '';
   if (!email) { setProgressStatus('Masukkan alamat email terlebih dahulu.'); return; }
-  const nonce = crypto.randomUUID();
-  const frame = document.createElement('iframe');
-  frame.name = 'questline-email-' + nonce;
-  frame.title = 'Respons layanan email Questline';
-  frame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;bottom:0;border:0;opacity:0;pointer-events:none';
-  const requestTimer = setTimeout(() => {
-    if (!pendingRequests.has(nonce)) return;
-    pendingRequests.delete(nonce);
-    frame.remove();
-    setProgressStatus('Layanan email tidak merespons. Periksa deployment Apps Script dan coba lagi.');
-  }, 25000);
-  pendingRequests.set(nonce, {action, source:frame.contentWindow, frame, requestTimer});
-  frame.addEventListener('load', () => {
-    const pending = pendingRequests.get(nonce);
-    if (!pending) return;
-    const responseURL = frame.contentWindow.location.href;
-    if (responseURL.includes('userCodeAppPanel') || responseURL.includes('googleusercontent.com')) {
-      pending.responseLoaded = true;
-      setProgressStatus(action === 'requestEmailCode'
-        ? 'Permintaan diterima. Jika email belum masuk, periksa folder Spam atau Promotions.'
-        : 'Permintaan diproses. Pesan email akan diperbarui setelah layanan merespons.');
-    }
-  });
-  const form = document.createElement('form');
-  form.method = 'post';
-  form.action = EMAIL_BACKUP_URL;
-  form.target = frame.name;
-  form.style.display = 'none';
-  for (const [name,value] of Object.entries({action,email,clientKey:getClientKey(),nonce,...extra})) {
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = name;
-    input.value = typeof value === 'string' ? value : JSON.stringify(value);
-    form.appendChild(input);
+  const callbackName = 'questlineCallback_' + crypto.randomUUID().replace(/-/g, '');
+  let completed = false;
+  const script = document.createElement('script');
+  const cleanup = () => {
+    if (completed) return;
+    completed = true;
+    clearTimeout(timer);
+    delete window[callbackName];
+    script.remove();
+  };
+  window[callbackName] = result => { cleanup(); handleServiceResponse(action, result); };
+  script.onerror = () => { cleanup(); setProgressStatus('Layanan email gagal dimuat. Coba lagi.'); };
+  const params = new URLSearchParams({ action, email, clientKey:getClientKey(), callback:callbackName });
+  for (const [key, value] of Object.entries(extra)) params.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+  script.src = EMAIL_BACKUP_URL + '?' + params.toString();
+  const timer = setTimeout(() => { cleanup(); setProgressStatus('Layanan email tidak merespons. Periksa penerapan Apps Script, lalu coba lagi.'); }, 30000);
+  setProgressStatus(action === 'requestEmailCode' ? 'Mengirim kode verifikasi…' : 'Memeriksa kode…');
+  document.head.appendChild(script);
+}
+
+function handleServiceResponse(action, result) {
+  if (!result) { setProgressStatus('Layanan email memberi respons kosong. Coba lagi.'); return; }
+  if (result.status === 'codeSent') {
+    awaitingEmailCode = true;
+    if (codeStep) codeStep.hidden = false;
+    if (codeInput) codeInput.focus();
+    if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
+    setProgressStatus('Kode dikirim ke email. Masukkan 6 digit tersebut.');
+    return;
   }
-  document.body.appendChild(form);
-  form.submit();
-  form.remove();
+  if (result.status === 'verified') {
+    awaitingEmailCode = false;
+    const email = result.email;
+    localStorage.setItem(EMAIL_BACKUP_STATE, JSON.stringify({email,status:'verified',clients:[getClientKey()]}));
+    const settings = JSON.parse(localStorage.getItem('qlSettings') || '{}');
+    settings.email = email;
+    localStorage.setItem('qlSettings', JSON.stringify(settings));
+    const reminderEmail = document.querySelector('#reminderEmail');
+    if (reminderEmail) reminderEmail.value = email;
+    if (emailInput) emailInput.readOnly = true;
+    if (codeStep) codeStep.hidden = true;
+    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
+    setProgressStatus('Email aktif. Cadangan pertama sedang dikirim; berikutnya maksimal sekali sehari.');
+    localStorage.removeItem('qlLastEmailBackupAt');
+    queueEmailBackup();
+    return;
+  }
+  if (result.status === 'backupSent') {
+    localStorage.setItem('qlLastEmailBackupAt', String(Date.now()));
+    if (backupStatus) backupStatus.textContent = 'Cadangan progres terkirim ke email.';
+    setProgressStatus('Email cadangan terbaru sudah dikirim.');
+    clearTimeout(backupTimer);
+    backupTimer = setTimeout(queueEmailBackup, EMAIL_BACKUP_INTERVAL);
+    return;
+  }
+  if (result.status === 'throttled') {
+    localStorage.setItem('qlLastEmailBackupAt', String(Date.now()));
+    setProgressStatus(result.message || 'Cadangan terbaru masih berlaku.');
+    clearTimeout(backupTimer);
+    backupTimer = setTimeout(queueEmailBackup, EMAIL_BACKUP_INTERVAL);
+    return;
+  }
+  if (action === 'requestEmailCode') {
+    awaitingEmailCode = false;
+    if (codeStep) codeStep.hidden = true;
+    if (primaryEmailAction) primaryEmailAction.textContent = 'Aktifkan cadangan email';
+  }
+  setProgressStatus(result.message || 'Permintaan belum berhasil. Coba lagi.');
 }
 function queueEmailBackup() {
   const account = getAccount();
