@@ -60,25 +60,31 @@ function setProgressStatus(message) {
 function requestService(action, extra = {}) {
   const email = emailInput?.value.trim().toLowerCase() || getAccount()?.email || '';
   if (!email) { setProgressStatus('Masukkan alamat email terlebih dahulu.'); return; }
-  const callbackName = 'questlineCallback_' + crypto.randomUUID().replace(/-/g, '');
-  let completed = false;
-  const script = document.createElement('script');
-  const cleanup = () => {
-    if (completed) return;
-    completed = true;
-    clearTimeout(timer);
-    delete window[callbackName];
-    script.remove();
-  };
-  window[callbackName] = result => { cleanup(); handleServiceResponse(action, result); };
-  script.onerror = () => { cleanup(); setProgressStatus('Layanan email gagal dimuat. Coba lagi.'); };
-  const params = new URLSearchParams({ action, email, clientKey:getClientKey(), callback:callbackName });
-  for (const [key, value] of Object.entries(extra)) params.set(key, typeof value === 'string' ? value : JSON.stringify(value));
-  script.src = EMAIL_BACKUP_URL + '?' + params.toString();
-  const timer = setTimeout(() => { cleanup(); setProgressStatus('Layanan email tidak merespons. Periksa penerapan Apps Script, lalu coba lagi.'); }, 30000);
-  setProgressStatus(action === 'requestEmailCode' ? 'Mengirim kode verifikasi…' : 'Memeriksa kode…');
-  document.head.appendChild(script);
+  const nonce = crypto.randomUUID();
+  const frame = document.createElement('iframe');
+  frame.name = 'questline-email-' + nonce;
+  frame.title = 'Respons layanan email Questline';
+  frame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;bottom:0;border:0;opacity:0;pointer-events:none';
+  const timer = setTimeout(() => {
+    const pending = pendingRequests.get(nonce);
+    if (!pending) return;
+    pendingRequests.delete(nonce);
+    frame.remove();
+    setProgressStatus('Layanan email tidak merespons. Coba lagi.');
+  },30000);
+  pendingRequests.set(nonce,{action,source:frame.contentWindow,frame,timer});
+  document.body.appendChild(frame);
+  const form = document.createElement('form');
+  for (const [name,value] of Object.entries({action,email,clientKey:getClientKey(),nonce,...extra})) {
+    const input=document.createElement('input'); input.type='hidden'; input.name=name; input.value=typeof value==='string'?value:JSON.stringify(value); form.appendChild(input);
+  }
+  document.body.appendChild(frame);
+  document.body.appendChild(form);
+  form.submit();
+  form.remove();
+  setProgressStatus(action==='requestEmailCode'?'Mengirim kode verifikasi… Kolom kode tetap tersedia di bawah.':'Memeriksa kode…');
 }
+
 
 function handleServiceResponse(action, result) {
   if (!result) { setProgressStatus('Layanan email memberi respons kosong. Coba lagi.'); return; }
@@ -167,7 +173,7 @@ window.addEventListener('message', event => {
   const {nonce,result} = event.data;
   const pending = pendingRequests.get(nonce);
   if (!pending || event.source !== pending.source) return;
-  clearTimeout(pending.requestTimer);
+  clearTimeout(pending.timer);
   pendingRequests.delete(nonce);
   pending.frame.remove();
   if (result.status === 'codeSent') {
