@@ -27,6 +27,7 @@ const downloadBackupBtn = document.querySelector('#downloadBackupBtn');
 const restoreBackupFile = document.querySelector('#restoreBackupFile');
 const backupStatusEl = document.querySelector('#backupStatus');
 const isSignInTab = new URL(window.location.href).searchParams.get('qlGoogleSignIn') === '1';
+const promptDismissedKey = 'qlProgressPromptDismissed';
 let auth = null;
 let db = null;
 let suppressCloudWrite = false;
@@ -47,10 +48,19 @@ function closeCloudPrompt() {
 }
 
 if (launchPromptBtn) launchPromptBtn.addEventListener('click', openCloudPrompt);
-if (promptLocalBtn) promptLocalBtn.addEventListener('click', closeCloudPrompt);
-if (promptCloseBtn) promptCloseBtn.addEventListener('click', closeCloudPrompt);
+if (promptLocalBtn) promptLocalBtn.addEventListener('click', () => {
+  localStorage.setItem(promptDismissedKey, '1');
+  closeCloudPrompt();
+});
+if (promptCloseBtn) promptCloseBtn.addEventListener('click', () => {
+  localStorage.setItem(promptDismissedKey, '1');
+  closeCloudPrompt();
+});
 if (promptDialog) promptDialog.addEventListener('click', event => {
-  if (event.target === promptDialog) closeCloudPrompt();
+  if (event.target === promptDialog) {
+    localStorage.setItem(promptDismissedKey, '1');
+    closeCloudPrompt();
+  }
 });
 
 function localSnapshot() {
@@ -75,7 +85,7 @@ function validateSnapshot(data) {
 function parseBackup(text) {
   const backup = JSON.parse(text);
   const snapshot = backup && backup.format === 'questline-backup-v1' ? backup.data : backup;
-  if (!validateSnapshot(snapshot)) throw new Error('This file is not a valid Questline backup.');
+  if (!validateSnapshot(snapshot)) throw new Error('File ini bukan cadangan Questline yang valid.');
   return snapshot;
 }
 
@@ -84,20 +94,20 @@ function downloadBackup() {
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'}));
   const link = document.createElement('a');
   link.href = url;
-  link.download = 'Questline-Progress-Backup.json';
+  link.download = 'Cadangan-Progres-Questline.json';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
-  if (backupStatusEl) backupStatusEl.textContent = 'Backup downloaded. Keep the JSON file somewhere safe.';
+  if (backupStatusEl) backupStatusEl.textContent = 'Cadangan diunduh sebagai Cadangan-Progres-Questline.json. Simpan file ini di tempat aman.';;
 }
 
 async function restoreBackup(file, statusElement) {
   if (!file) return null;
   try {
     const snapshot = parseBackup(await file.text());
-    if (statusElement) statusElement.textContent = 'Backup file is valid.';
+    if (statusElement) statusElement.textContent = 'File cadangan valid.';
     return snapshot;
   } catch (error) {
-    if (statusElement) statusElement.textContent = error.message || 'Could not read that backup file.';
+    if (statusElement) statusElement.textContent = error.message || 'File cadangan tidak dapat dibaca.';
     return null;
   }
 }
@@ -106,20 +116,20 @@ if (downloadBackupBtn) downloadBackupBtn.addEventListener('click', downloadBacku
 if (restoreBackupFile) restoreBackupFile.addEventListener('change', async event => {
   const snapshot = await restoreBackup(event.target.files[0], backupStatusEl);
   if (!snapshot) return;
-  if (!confirm('Replace this browser\'s current Questline progress with the selected backup?')) return;
+  if (!confirm('Ganti progres Questline di browser ini dengan cadangan yang dipilih?')) return;
   writeSnapshot(snapshot);
   localStorage.setItem('qlPendingCloudBackup', JSON.stringify(snapshot));
   if (auth?.currentUser) {
     try {
       await saveCloud(auth.currentUser.uid);
       localStorage.removeItem('qlPendingCloudBackup');
-      if (backupStatusEl) backupStatusEl.textContent = 'Backup restored and synced.';
+      if (backupStatusEl) backupStatusEl.textContent = 'Cadangan dipulihkan dan disinkronkan.';
     } catch (error) {
       console.error('Questline backup sync failed:', error);
-      if (backupStatusEl) backupStatusEl.textContent = 'Restored here, but cloud sync failed. Your local progress is safe.';
+      if (backupStatusEl) backupStatusEl.textContent = 'Progres dipulihkan di perangkat ini, tetapi sinkronisasi cloud gagal. Progres lokal tetap aman.';
     }
   } else if (backupStatusEl) {
-    backupStatusEl.textContent = 'Backup restored. It will sync after Google sign-in.';
+    backupStatusEl.textContent = 'Cadangan dipulihkan di perangkat ini. Progres akan disinkronkan setelah masuk dengan Google.';
   }
   event.target.value = '';
 });
@@ -153,32 +163,32 @@ function queueCloudSave() {
   saveTimer = setTimeout(() => {
     saveCloud(auth.currentUser.uid).catch(error => {
       console.error('Questline cloud save failed:', error);
-      sayStatus('Masuk, tetapi cloud save gagal. Progress masih tersimpan di browser ini.');
+      sayStatus('Masuk, tetapi penyimpanan cloud gagal. Progres masih tersimpan di browser ini.');
     });
   }, 800);
 }
 
 function startGoogleSignIn(button) {
   if (!auth) {
-    sayStatus('Google sign-in is not initialized. Check Firebase setup and reload.');
+    sayStatus('Masuk dengan Google belum disiapkan. Kamu tetap bisa memakai Questline tanpa masuk.');
     return;
   }
   if (signInInProgress) {
-    sayStatus('Google sign-in is already opening.');
+    sayStatus('Proses masuk dengan Google sedang dibuka.');
     return;
   }
 
   // Open synchronously from the click so the browser treats this as user-initiated.
   const signInTab = window.open('about:blank', '_blank');
   if (!signInTab) {
-    sayStatus('The sign-in tab was blocked. Allow pop-ups for this site, then try again.');
+    sayStatus('Tab masuk diblokir. Izinkan pop-up untuk situs ini, lalu coba lagi.');
     return;
   }
 
   const signInUrl = new URL(window.location.href);
   signInUrl.searchParams.set('qlGoogleSignIn', '1');
   signInTab.location.replace(signInUrl.toString());
-  sayStatus('Sign-in opened in a new tab. Select a backup there if you have one, then continue.');
+  sayStatus('Halaman masuk dibuka di tab baru.');
 }
 
 
@@ -188,10 +198,11 @@ if (promptSignInBtn) promptSignInBtn.addEventListener('click', event => {
 });
 if (signInBtn) signInBtn.addEventListener('click', event => {
   event.preventDefault();
+  localStorage.setItem(promptDismissedKey, '1');
   if (isSignInTab && auth) {
     signInWithRedirect(auth, new GoogleAuthProvider()).catch(error => {
       console.error('Google sign-in redirect failed:', error.code, error.message, error);
-      sayStatus('Google sign-in failed (' + (error.code || 'unknown') + '). ' + (error.message || ''));
+      sayStatus('Masuk dengan Google gagal (' + (error.code || 'tidak diketahui') + '). ' + (error.message || 'Coba lagi.'));
     });
   } else {
     startGoogleSignIn(signInBtn);
@@ -199,7 +210,7 @@ if (signInBtn) signInBtn.addEventListener('click', event => {
 });
 
 if (!hasFirebaseConfig) {
-  sayStatus('Cloud sign-in is not configured yet. Continue using Questline locally, or open Save progress to check the setup.');
+    sayStatus('Fitur masuk Google belum disiapkan. Kamu tetap bisa memakai Questline tanpa masuk.');
 } else {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -208,7 +219,7 @@ if (!hasFirebaseConfig) {
   getRedirectResult(auth).catch(error => {
     console.error('Google sign-in redirect result failed:', error.code, error.message, error);
     const code = error && error.code ? ' (' + error.code + ')' : '';
-    sayStatus('Google sign-in did not complete' + code + '. Check Firebase Authentication settings and try again.');
+    sayStatus('Masuk dengan Google tidak selesai (' + (error.code || 'tidak diketahui') + '). Periksa pengaturan Firebase Authentication, lalu coba lagi.');
   });
 
   const signInUrl = new URL(window.location.href);
@@ -216,24 +227,24 @@ if (!hasFirebaseConfig) {
     signInUrl.searchParams.delete('qlGoogleSignIn');
     window.history.replaceState({}, '', signInUrl.toString());
     openCloudPrompt();
-    sayStatus('Choose a backup if needed, then continue with Google.');
+    sayStatus('Pilih cadangan jika perlu, lalu lanjutkan dengan Google.');
+  } else if (localStorage.getItem(promptDismissedKey) !== '1') {
+    openCloudPrompt();
   }
 
-  if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
+  if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { localStorage.removeItem(promptDismissedKey); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Tidak bisa keluar dari akun. Coba lagi.'); }));
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
       if (signInBtn) signInBtn.hidden = false;
-      if (signOutBtn) signOutBtn.hidden = true;
-      sayStatus('Not signed in. Progress stays in this browser only.');
-      return;
+      sayStatus('Tidak masuk. Progres tersimpan di browser ini.');
     }
-    sessionStorage.setItem('qlCloudPromptDismissed', '1');
+    localStorage.setItem(promptDismissedKey, '1');
     closeCloudPrompt();
     if (signInBtn) signInBtn.hidden = true;
     if (signOutBtn) signOutBtn.hidden = false;
     if (user) {
-      sayStatus('Memuat progress Google account…');
+      sayStatus('Memuat progres akun Google…');
       try {
         const ref = doc(db, 'users', user.uid, 'questline', 'progress');
         const pendingBackupText = localStorage.getItem('qlPendingCloudBackup');
@@ -242,7 +253,7 @@ if (!hasFirebaseConfig) {
           await setDoc(ref, {...pendingBackup, updatedAt:serverTimestamp()});
           writeSnapshot(pendingBackup);
           localStorage.removeItem('qlPendingCloudBackup');
-          sayStatus('Backup restored and synced to ' + (user.displayName || user.email) + '.');
+          sayStatus('Cadangan dipulihkan dan disinkronkan ke ' + (user.displayName || user.email) + '.');
           return;
         }
         const snapshot = await getDoc(ref);
@@ -251,10 +262,10 @@ if (!hasFirebaseConfig) {
         } else {
           await setDoc(ref, {...localSnapshot(), updatedAt: serverTimestamp()});
         }
-        sayStatus('Progress tersambung ke ' + (user.displayName || user.email) + '.');
+        sayStatus('Progres tersambung ke ' + (user.displayName || user.email) + '.');
       } catch (error) {
         console.error('Questline cloud load failed:', error);
-        sayStatus('Tidak bisa memuat cloud progress. Data lokal tidak dihapus; periksa Firebase setup dan Rules.');
+        sayStatus('Progres cloud tidak dapat dimuat. Data lokal tetap aman; periksa pengaturan Firebase dan Rules.');
       }
     }
   });
