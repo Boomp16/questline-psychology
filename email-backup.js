@@ -75,10 +75,14 @@ function requestService(action, extra = {}) {
   frame.addEventListener('load', () => {
     const pending = pendingRequests.get(nonce);
     if (!pending) return;
-    // Apps Script commonly redirects its web app response to a generated *.script.googleusercontent.com origin.
-    pending.lastFrameUrl = frame.contentWindow.location.href;
+    const responseURL = frame.contentWindow.location.href;
+    if (responseURL.includes('userCodeAppPanel') || responseURL.includes('googleusercontent.com')) {
+      pending.responseLoaded = true;
+      setProgressStatus(action === 'requestEmailCode'
+        ? 'Permintaan diterima. Jika email belum masuk, periksa folder Spam atau Promotions.'
+        : 'Permintaan diproses. Pesan email akan diperbarui setelah layanan merespons.');
+    }
   });
-  setProgressStatus(action === 'requestEmailCode' ? 'Menghubungi layanan email…' : 'Mengirim permintaan…');
   const form = document.createElement('form');
   form.method = 'post';
   form.action = EMAIL_BACKUP_URL;
@@ -199,7 +203,7 @@ if (primaryEmailAction) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
     setProgressStatus('Mengirim kode verifikasi…');
     if (codeStep) codeStep.hidden = false;
-    if (codeInput) codeInput.disabled = false;
+    if (codeInput) { codeInput.disabled = false; codeInput.focus(); }
     primaryEmailAction.textContent = 'Konfirmasi kode';
     awaitingEmailCode = true;
     requestService('requestEmailCode');
