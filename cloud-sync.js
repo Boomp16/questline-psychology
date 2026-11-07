@@ -131,6 +131,7 @@ if (restoreBackupFile) restoreBackupFile.addEventListener('change', async event 
   } else if (backupStatusEl) {
     backupStatusEl.textContent = 'Cadangan dipulihkan di perangkat ini. Progres akan disinkronkan setelah masuk dengan Google.';
   }
+  if (typeof window.questlineProgressUpdated === 'function') window.questlineProgressUpdated();
   event.target.value = '';
 });
 
@@ -153,6 +154,7 @@ async function saveCloud(uid) {
   if (!db || !uid || suppressCloudWrite) return;
   await setDoc(doc(db, 'users', uid, 'questline', 'progress'), {
     ...localSnapshot(),
+    accountEmail: auth?.currentUser?.email || null,
     updatedAt: serverTimestamp()
   });
 }
@@ -237,48 +239,76 @@ if (!hasFirebaseConfig) {
   onAuthStateChanged(auth, async user => {
     if (!user) {
       if (signInBtn) signInBtn.hidden = false;
+      if (signOutBtn) signOutBtn.hidden = true;
+      const reminderEmailInput = document.querySelector('#reminderEmail');
+      if (reminderEmailInput) reminderEmailInput.readOnly = false;
       sayStatus('Tidak masuk. Progres tersimpan di browser ini.');
+      if (!localStorage.getItem(promptDismissedKey)) openCloudPrompt();
+      return;
     }
     localStorage.setItem(promptDismissedKey, '1');
     closeCloudPrompt();
     if (signInBtn) signInBtn.hidden = true;
     if (signOutBtn) signOutBtn.hidden = false;
-    if (user) {
-      sayStatus('Memuat progres akun Google…');
-      try {
-        const ref = doc(db, 'users', user.uid, 'questline', 'progress');
-        const pendingBackupText = localStorage.getItem('qlPendingCloudBackup');
-        if (pendingBackupText) {
-          const pendingBackup = parseBackup(JSON.stringify(JSON.parse(pendingBackupText)));
-          await setDoc(ref, {...pendingBackup, updatedAt:serverTimestamp()});
-          writeSnapshot(pendingBackup);
-          localStorage.removeItem('qlPendingCloudBackup');
-          sayStatus('Cadangan dipulihkan dan disinkronkan ke ' + (user.displayName || user.email) + '.');
-          return;
-        }
-        const snapshot = await getDoc(ref);
-        if (snapshot.exists()) {
-          writeSnapshot(snapshot.data());
-        } else {
-          await setDoc(ref, {...localSnapshot(), updatedAt: serverTimestamp()});
-        }
-        sayStatus('Progres tersambung ke ' + (user.displayName || user.email) + '.');
-      } catch (error) {
-        console.error('Questline cloud load failed:', error);
-        sayStatus('Progres cloud tidak dapat dimuat. Data lokal tetap aman; periksa pengaturan Firebase dan Rules.');
+    if (user.email) {
+      const reminderEmailInput = document.querySelector('#reminderEmail');
+      if (reminderEmailInput) {
+        reminderEmailInput.value = user.email;
+        reminderEmailInput.readOnly = true;
       }
+      const savedSettings = JSON.parse(localStorage.getItem('qlSettings') || '{}');
+      if (savedSettings.email !== user.email) {
+        savedSettings.email = user.email;
+        localStorage.setItem('qlSettings', JSON.stringify(savedSettings));
+      }
+    }
+    sayStatus('Memuat progres akun Google…');
+    try {
+      const ref = doc(db, 'users', user.uid, 'questline', 'progress');
+      const pendingBackupText = localStorage.getItem('qlPendingCloudBackup');
+      if (pendingBackupText) {
+        const pendingBackup = parseBackup(pendingBackupText);
+        pendingBackup.accountEmail = user.email || null;
+        await setDoc(ref, {...pendingBackup, updatedAt:serverTimestamp()});
+        writeSnapshot(pendingBackup);
+        localStorage.removeItem('qlPendingCloudBackup');
+        sayStatus('Cadangan dipulihkan dan disinkronkan ke ' + (user.email || user.displayName) + '.');
+        return;
+      }
+      const snapshot = await getDoc(ref);
+      if (snapshot.exists()) {
+        const cloudData = snapshot.data();
+        writeSnapshot(cloudData);
+        if (user.email) {
+          const accountSettings = JSON.parse(localStorage.getItem('qlSettings') || '{}');
+          accountSettings.email = user.email;
+          localStorage.setItem('qlSettings', JSON.stringify(accountSettings));
+          queueCloudSave();
+        }
+      } else {
+        await setDoc(ref, {...localSnapshot(), accountEmail:user.email || null, updatedAt:serverTimestamp()});
+      }
+      sayStatus('Progres tersambung ke ' + (user.email || user.displayName) + '.');
+    } catch (error) {
+      console.error('Questline cloud load failed:', error);
+      sayStatus('Progres cloud tidak dapat dimuat. Data lokal tetap aman; periksa pengaturan Firebase dan Rules.');
     }
   });
 }
 
 window.addEventListener('storage', event => {
-  if (['qlQuests','qlStrategies','qlProfile','qlSettings','qlReflection'].includes(event.key)) queueCloudSave();
+  if (['qlQuests','qlStrategies','qlProfile','qlSettings','qlReflection'].includes(event.key)) {
+    queueCloudSave();
+    if (typeof window.questlineProgressUpdated === 'function') window.questlineProgressUpdated();
+  }
 });
 
-// app.js writes localStorage from the same tab, which does not emit a storage event.
-// Observe state-saving calls safely and debounce cloud writes while signed in.
+// Keep cloud progress and reminder eligibility in sync with same-tab changes.
 const originalSetItem = Storage.prototype.setItem;
 Storage.prototype.setItem = function(key, value) {
   originalSetItem.call(this, key, value);
-  if (['qlQuests','qlStrategies','qlProfile','qlSettings','qlReflection'].includes(key)) queueCloudSave();
+  if (['qlQuests','qlStrategies','qlProfile','qlSettings','qlReflection'].includes(key)) {
+    queueCloudSave();
+    if (typeof window.questlineProgressUpdated === 'function') window.questlineProgressUpdated();
+  }
 };

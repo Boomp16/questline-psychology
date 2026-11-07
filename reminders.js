@@ -19,7 +19,7 @@ function setReminderStatus(message) {
   if (typeof toast === 'function') toast(message);
 }
 
-function submitReminderRequest(action, email) {
+function submitReminderRequest(action, email, hasOpenQuests) {
   if (!REMINDER_SCRIPT_URL.startsWith('https://script.google.com/macros/s/') || REMINDER_SCRIPT_URL.includes('PASTE_YOUR')) {
     setReminderStatus('Pengingat belum tersambung. Admin perlu memasukkan URL Apps Script.');
     return false;
@@ -35,12 +35,14 @@ function submitReminderRequest(action, email) {
       try {
         const text = frame.contentDocument && frame.contentDocument.body ? frame.contentDocument.body.innerText : '';
         if (text && /Questline|confirmation|unsubscri|reminder|already/i.test(text)) {
-          setReminderStatus(text.slice(0, 350));
-          if (/daily questline reminders are active|already subscribed/i.test(text)) {
+          if (/quest reminder status updated/i.test(text)) {
             const saved = JSON.parse(localStorage.getItem(REMINDER_STATUS_KEY) || '{}');
             saved.status = 'active';
+            saved.hasOpenQuests = reminderHasOpenQuests();
             localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify(saved));
+            setReminderStatus(saved.hasOpenQuests ? 'Pengingat aktif; masih ada quest yang belum selesai.' : 'Tidak ada quest yang belum selesai. Email pengingat dijeda.');
           }
+          if (/confirmation email sent/i.test(text)) setReminderStatus('Konfirmasi dikirim. Pengingat baru aktif setelah alamat email dikonfirmasi.');
           if (/you are unsubscribed|already removed/i.test(text)) localStorage.removeItem(REMINDER_STATUS_KEY);
         }
       } catch (_) {
@@ -54,7 +56,7 @@ function submitReminderRequest(action, email) {
   form.action = REMINDER_SCRIPT_URL;
   form.target = frame.name;
   form.style.display = 'none';
-  [['action', action], ['email', email], ['clientKey', reminderClientKey()]].forEach(([name, value]) => {
+  [['action', action], ['email', email], ['clientKey', reminderClientKey()], ['hasOpenQuests', String(!!hasOpenQuests)]].forEach(([name, value]) => {
     const input = document.createElement('input');
     input.type = 'hidden';
     input.name = name;
@@ -67,11 +69,35 @@ function submitReminderRequest(action, email) {
   return true;
 }
 
+function reminderHasOpenQuests() {
+  try {
+    return JSON.parse(localStorage.getItem('qlQuests') || '[]')
+      .some(quest => Number(quest.done || 0) < Number(quest.parts || 0));
+  } catch (error) {
+    console.error('Could not read Questline quest progress:', error);
+    return false;
+  }
+}
+
+let questStatusTimer = null;
+function syncReminderQuestStatus() {
+  clearTimeout(questStatusTimer);
+  questStatusTimer = setTimeout(() => {
+    const saved = JSON.parse(localStorage.getItem(REMINDER_STATUS_KEY) || 'null');
+    if (!saved || !['active','pending'].includes(saved.status)) return;
+    submitReminderRequest('questStatus', saved.email, reminderHasOpenQuests());
+  }, 1200);
+}
+window.questlineProgressUpdated = syncReminderQuestStatus;
+setTimeout(syncReminderQuestStatus, 1500);
+
 const reminderSettingsForm = document.querySelector('#settingsForm');
 if (reminderSettingsForm) {
   reminderSettingsForm.addEventListener('submit', event => {
     const email = document.querySelector('#reminderEmail').value.trim().toLowerCase();
     const enabled = document.querySelector('#remindersEnabled').checked;
+    const quests = JSON.parse(localStorage.getItem('qlQuests') || '[]');
+    const hasOpenQuests = quests.some(quest => Number(quest.done || 0) < Number(quest.parts || 0));
     const previous = JSON.parse(localStorage.getItem(REMINDER_STATUS_KEY) || 'null');
 
     if (enabled && !email) {
@@ -84,14 +110,17 @@ if (reminderSettingsForm) {
     if (enabled && previous && previous.email === email && previous.status === 'active') {
       event.preventDefault();
       event.stopImmediatePropagation();
-      setReminderStatus('Pengingat harian sudah aktif untuk email ini.');
+      submitReminderRequest('questStatus', email, hasOpenQuests);
+      setReminderStatus(hasOpenQuests
+        ? 'Pengingat aktif; masih ada quest yang belum selesai.'
+        : 'Tidak ada quest yang belum selesai. Email pengingat dijeda sampai ada quest aktif.');
       return;
     }
 
     if (enabled && previous && previous.email === email && previous.status === 'pending') {
       event.preventDefault();
       event.stopImmediatePropagation();
-      submitReminderRequest('subscribe', email);
+      submitReminderRequest('subscribe', email, hasOpenQuests);
       setReminderStatus('Mengirim ulang permintaan konfirmasi. Cek Inbox dan Spam; permintaan ulang dibatasi.');
       return;
     }
@@ -99,18 +128,20 @@ if (reminderSettingsForm) {
     if (enabled) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify({email, status: 'pending'}));
-      submitReminderRequest('subscribe', email);
-      setReminderStatus('Permintaan terkirim. Cek Inbox e-mail dan Spam, lalu klik Confirm reminders.');
+      localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify({email, status: 'pending', hasOpenQuests}));
+      submitReminderRequest('subscribe', email, hasOpenQuests);
+      sayStatus(hasOpenQuests
+        ? 'Permintaan terkirim. Cek email dan folder Spam, lalu konfirmasi alamatmu.'
+        : 'Permintaan terkirim. Cek email dan folder Spam. Pengingat dikirim hanya jika ada quest yang belum selesai.');
       return;
     }
 
   if (!enabled && previous) {
       event.preventDefault();
       event.stopImmediatePropagation();
-      localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify({email: previous.email, status: 'unsubscribing'}));
-      submitReminderRequest('unsubscribe', previous.email);
-      setReminderStatus('Unsubscribe request sent. Re-enable only after you see the unsubscribe confirmation page.');
+      localStorage.setItem(REMINDER_STATUS_KEY, JSON.stringify({email: previous.email, status: 'unsubscribing', hasOpenQuests: false}));
+      submitReminderRequest('unsubscribe', previous.email, false);
+      setReminderStatus('Permintaan berhenti berlangganan terkirim. Aktifkan kembali setelah konfirmasi berhenti muncul.');
     }
   }, true);
 }
