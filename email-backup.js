@@ -157,18 +157,29 @@ window.addEventListener('message', event => {
   }
 });
 
-if (primaryEmailAction) primaryEmailAction.addEventListener('click', () => {
-  const account = getAccount();
-  if (account?.status === 'verified') {
-    const code = codeInput?.value.trim() || '';
-    if (!/^\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
-    requestService('verifyEmailCode', {code});
-    return;
-  }
-  const email = emailInput?.value.trim().toLowerCase() || '';
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
-  requestService('requestEmailCode');
-});
+if (primaryEmailAction) {
+  const activateEmailBackup = event => {
+    event.preventDefault();
+    primaryEmailAction.classList.add('is-pressed');
+    setTimeout(() => primaryEmailAction.classList.remove('is-pressed'), 220);
+    const account = getAccount();
+    if (account?.status === 'verified') {
+      const code = codeInput?.value.trim() || '';
+      if (!/^\\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
+      setProgressStatus('Memeriksa kode…');
+      requestService('verifyEmailCode', {code});
+      return;
+    }
+    const email = emailInput?.value.trim().toLowerCase() || '';
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
+    setProgressStatus('Mengirim kode verifikasi…');
+    requestService('requestEmailCode');
+  };
+  primaryEmailAction.addEventListener('click', activateEmailBackup);
+  primaryEmailAction.addEventListener('pointerdown', () => primaryEmailAction.classList.add('is-pressed'));
+  primaryEmailAction.addEventListener('pointerup', () => primaryEmailAction.classList.remove('is-pressed'));
+}
+
 
 if (restoreButton && restoreInput) restoreButton.addEventListener('click', () => restoreInput.click());
 if (restoreInput) restoreInput.addEventListener('change', async event => {
