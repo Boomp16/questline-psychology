@@ -91,34 +91,48 @@ function queueCloudSave() {
   }, 800);
 }
 
-if (promptSignInBtn) promptSignInBtn.addEventListener('click', () => signInBtn ? signInBtn.click() : sayStatus('Google sign-in button is not available.'));
+async function startGoogleSignIn(button) {
+  if (!auth) {
+    sayStatus('Google sign-in is not initialized. Check Firebase configuration and reload.');
+    return;
+  }
+  if (button) button.disabled = true;
+  if (promptSignInBtn) promptSignInBtn.disabled = true;
+  if (signInBtn) signInBtn.disabled = true;
+  sayStatus('Opening Google sign-in…');
+  try {
+    await signInWithPopup(auth, new GoogleAuthProvider());
+    sessionStorage.setItem('qlCloudPromptDismissed', '1');
+    closeCloudPrompt();
+  } catch (error) {
+    console.error('Google sign-in failed:', error.code, error.message, error);
+    const code = error && error.code ? ' (' + error.code + ')' : '';
+    sayStatus('Google sign-in did not complete' + code + '. Check popup blocking and Firebase authorized domains, then retry.');
+  } finally {
+    if (button) button.disabled = false;
+    if (promptSignInBtn) promptSignInBtn.disabled = false;
+    if (signInBtn) signInBtn.disabled = false;
+  }
+}
+
+if (promptSignInBtn) promptSignInBtn.addEventListener('click', event => {
+  event.preventDefault();
+  startGoogleSignIn(promptSignInBtn);
+});
+if (signInBtn) signInBtn.addEventListener('click', event => {
+  event.preventDefault();
+  startGoogleSignIn(signInBtn);
+});
 
 if (!hasFirebaseConfig) {
   sayStatus('Cloud sign-in is not configured yet. Continue without signing in, or ask the site admin to finish Firebase setup.');
   openCloudPrompt();
-  if (signInBtn) {
-    signInBtn.addEventListener('click', () => sayStatus('Admin perlu menyelesaikan konfigurasi Firebase sebelum Google sign-in tersedia.'));
-  }
 } else {
   const app = initializeApp(firebaseConfig);
   auth = getAuth(app);
   db = getFirestore(app);
 
-  if (signInBtn) signInBtn.addEventListener('click', async () => {
-    signInBtn.disabled = true;
-    if (promptSignInBtn) promptSignInBtn.disabled = true;
-    try {
-      await signInWithPopup(auth, new GoogleAuthProvider());
-      sessionStorage.setItem('qlCloudPromptDismissed', '1');
-      closeCloudPrompt();
-    } catch (error) {
-      console.error('Google sign-in failed:', error);
-      sayStatus('Google sign-in failed. You can retry or continue without signing in.');
-    } finally {
-      signInBtn.disabled = false;
-      if (promptSignInBtn) promptSignInBtn.disabled = false;
-    }
-  });
+
   if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
 
   onAuthStateChanged(auth, async user => {
