@@ -84,8 +84,6 @@ function handleServiceResponse(action, result) {
   if (!result) { setProgressStatus('Layanan email memberi respons kosong. Coba lagi.'); return; }
   if (result.status === 'codeSent') {
     awaitingEmailCode = true;
-    if (codeStep) codeStep.hidden = false;
-    if (codeInput) codeInput.focus();
     if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
     setProgressStatus('Kode dikirim ke email. Masukkan 6 digit tersebut.');
     return;
@@ -100,8 +98,7 @@ function handleServiceResponse(action, result) {
     const reminderEmail = document.querySelector('#reminderEmail');
     if (reminderEmail) reminderEmail.value = email;
     if (emailInput) emailInput.readOnly = true;
-    if (codeStep) codeStep.hidden = true;
-    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
+    if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
     setProgressStatus('Email aktif. Cadangan pertama sedang dikirim; berikutnya maksimal sekali sehari.');
     localStorage.removeItem('qlLastEmailBackupAt');
     queueEmailBackup();
@@ -124,8 +121,7 @@ function handleServiceResponse(action, result) {
   }
   if (action === 'requestEmailCode') {
     awaitingEmailCode = false;
-    if (codeStep) codeStep.hidden = true;
-    if (primaryEmailAction) primaryEmailAction.textContent = 'Aktifkan cadangan email';
+    if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
   }
   setProgressStatus(result.message || 'Permintaan belum berhasil. Coba lagi.');
 }
@@ -176,9 +172,7 @@ window.addEventListener('message', event => {
   pending.frame.remove();
   if (result.status === 'codeSent') {
     awaitingEmailCode = true;
-    if (codeStep) codeStep.hidden = false;
     if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
-    if (codeInput) codeInput.focus();
     setProgressStatus('Kode dikirim ke email. Masukkan 6 digit tersebut.');
   } else if (result.status === 'verified') {
     awaitingEmailCode = false;
@@ -190,8 +184,7 @@ window.addEventListener('message', event => {
     const reminderEmail = document.querySelector('#reminderEmail');
     if (reminderEmail) reminderEmail.value = email;
     if (emailInput) emailInput.readOnly = true;
-    if (codeStep) codeStep.hidden = true;
-    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
+    if (primaryEmailAction) { primaryEmailAction.textContent = 'Konfirmasi kode'; primaryEmailAction.disabled = true; }
     setProgressStatus('Email aktif. Cadangan pertama sedang dikirim; berikutnya maksimal sekali sehari.');
     localStorage.removeItem('qlLastEmailBackupAt');
     queueEmailBackup();
@@ -208,9 +201,8 @@ window.addEventListener('message', event => {
     backupTimer = setTimeout(queueEmailBackup, EMAIL_BACKUP_INTERVAL);
   } else {
     if (action === 'requestEmailCode') {
-      if (codeStep) codeStep.hidden = false;
-      if (codeInput) codeInput.disabled = false;
-      if (primaryEmailAction) primaryEmailAction.textContent = 'Kirim ulang kode';
+      awaitingEmailCode = false;
+      if (primaryEmailAction) primaryEmailAction.textContent = 'Konfirmasi kode';
     }
     setProgressStatus(result.message || 'Permintaan belum berhasil. Coba lagi.');
   }
@@ -221,21 +213,18 @@ if (primaryEmailAction) {
     event.preventDefault();
     primaryEmailAction.classList.add('is-pressed');
     setTimeout(() => primaryEmailAction.classList.remove('is-pressed'), 220);
-    const account = getAccount();
-    if (awaitingEmailCode || account?.status === 'verified') {
-      const code = codeInput?.value.trim() || '';
+    const email = emailInput?.value.trim().toLowerCase() || '';
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
+    const code = codeInput?.value.trim() || '';
+    if (code) {
       if (!/^\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
       setProgressStatus('Memeriksa kode…');
       requestService('verifyEmailCode', {code});
       return;
     }
-    const email = emailInput?.value.trim().toLowerCase() || '';
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
-    setProgressStatus('Mengirim kode verifikasi…');
-    if (codeStep) codeStep.hidden = false;
-    if (codeInput) { codeInput.disabled = false; codeInput.focus(); }
-    primaryEmailAction.textContent = 'Konfirmasi kode';
     awaitingEmailCode = true;
+    primaryEmailAction.textContent = 'Konfirmasi kode';
+    setProgressStatus('Mengirim kode verifikasi…');
     requestService('requestEmailCode');
   };
   primaryEmailAction.addEventListener('click', activateEmailBackup);
@@ -271,8 +260,7 @@ if (account?.email && emailInput) {
   emailInput.value = account.email;
   if (account.status === 'verified' && (account.clients || []).includes(getClientKey())) {
     emailInput.readOnly = true;
-    if (codeStep) codeStep.hidden = true;
-    if (primaryEmailAction) { primaryEmailAction.textContent = 'Cadangan email aktif'; primaryEmailAction.disabled = true; }
+    if (primaryEmailAction) { primaryEmailAction.textContent = 'Konfirmasi kode'; primaryEmailAction.disabled = true; }
     setProgressStatus('Cadangan email aktif untuk ' + account.email + '.');
   }
 }
