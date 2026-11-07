@@ -26,12 +26,7 @@ const launchPromptBtn = document.querySelector('#accountSyncBtn');
 const downloadBackupBtn = document.querySelector('#downloadBackupBtn');
 const restoreBackupFile = document.querySelector('#restoreBackupFile');
 const backupStatusEl = document.querySelector('#backupStatus');
-const backupSignInDialog = document.querySelector('#backupSignInDialog');
-const signInBackupFile = document.querySelector('#signInBackupFile');
-const signInBackupStatus = document.querySelector('#signInBackupStatus');
-const continueSignInBtn = document.querySelector('#continueSignInBtn');
-const skipBackupSignInBtn = document.querySelector('#skipBackupSignInBtn');
-const cancelBackupSignInBtn = document.querySelector('#cancelBackupSignIn');
+const isSignInTab = new URL(window.location.href).searchParams.get('qlGoogleSignIn') === '1';
 let auth = null;
 let db = null;
 let suppressCloudWrite = false;
@@ -89,7 +84,7 @@ function downloadBackup() {
   const url = URL.createObjectURL(new Blob([JSON.stringify(backup, null, 2)], {type:'application/json'}));
   const link = document.createElement('a');
   link.href = url;
-  link.download = `questline-backup-${new Date().toISOString().slice(0,10)}.json`;
+  link.download = 'Questline-Progress-Backup.json';
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
   if (backupStatusEl) backupStatusEl.textContent = 'Backup downloaded. Keep the JSON file somewhere safe.';
@@ -113,10 +108,22 @@ if (restoreBackupFile) restoreBackupFile.addEventListener('change', async event 
   if (!snapshot) return;
   if (!confirm('Replace this browser\'s current Questline progress with the selected backup?')) return;
   writeSnapshot(snapshot);
-  queueCloudSave();
-  if (backupStatusEl) backupStatusEl.textContent = auth?.currentUser ? 'Backup restored. Cloud save queued.' : 'Backup restored to this browser.';
+  localStorage.setItem('qlPendingCloudBackup', JSON.stringify(snapshot));
+  if (auth?.currentUser) {
+    try {
+      await saveCloud(auth.currentUser.uid);
+      localStorage.removeItem('qlPendingCloudBackup');
+      if (backupStatusEl) backupStatusEl.textContent = 'Backup restored and synced.';
+    } catch (error) {
+      console.error('Questline backup sync failed:', error);
+      if (backupStatusEl) backupStatusEl.textContent = 'Restored here, but cloud sync failed. Your local progress is safe.';
+    }
+  } else if (backupStatusEl) {
+    backupStatusEl.textContent = 'Backup restored. It will sync after Google sign-in.';
+  }
   event.target.value = '';
 });
+
 
 function writeSnapshot(data) {
   suppressCloudWrite = true;
@@ -181,7 +188,14 @@ if (promptSignInBtn) promptSignInBtn.addEventListener('click', event => {
 });
 if (signInBtn) signInBtn.addEventListener('click', event => {
   event.preventDefault();
-  startGoogleSignIn(signInBtn);
+  if (isSignInTab && auth) {
+    signInWithRedirect(auth, new GoogleAuthProvider()).catch(error => {
+      console.error('Google sign-in redirect failed:', error.code, error.message, error);
+      sayStatus('Google sign-in failed (' + (error.code || 'unknown') + '). ' + (error.message || ''));
+    });
+  } else {
+    startGoogleSignIn(signInBtn);
+  }
 });
 
 if (!hasFirebaseConfig) {
@@ -197,33 +211,13 @@ if (!hasFirebaseConfig) {
     sayStatus('Google sign-in did not complete' + code + '. Check Firebase Authentication settings and try again.');
   });
 
-  if (signInUrl.searchParams.get('qlGoogleSignIn') === '1') {
+  const signInUrl = new URL(window.location.href);
+  if (isSignInTab) {
     signInUrl.searchParams.delete('qlGoogleSignIn');
     window.history.replaceState({}, '', signInUrl.toString());
-    if (backupSignInDialog && typeof backupSignInDialog.showModal === 'function') backupSignInDialog.showModal();
+    openCloudPrompt();
+    sayStatus('Choose a backup if needed, then continue with Google.');
   }
-
-  async function beginRedirectWithBackup(file) {
-    let snapshot = null;
-    if (file) {
-      snapshot = await restoreBackup(file, signInBackupStatus);
-      if (!snapshot) return;
-    }
-    try {
-      if (snapshot) sessionStorage.setItem('qlPendingBackup', JSON.stringify(snapshot));
-      sayStatus('Redirecting this tab to Google sign-in…');
-      await signInWithRedirect(auth, new GoogleAuthProvider());
-    } catch (error) {
-      sessionStorage.removeItem('qlPendingBackup');
-      console.error('Google sign-in redirect failed:', error.code, error.message, error);
-      const code = error && error.code ? ' (' + error.code + ')' : '';
-      sayStatus('Google sign-in did not start' + code + '. Check Firebase setup and allow redirects for this site.');
-    }
-  }
-
-  if (continueSignInBtn) continueSignInBtn.addEventListener('click', () => beginRedirectWithBackup(signInBackupFile?.files?.[0]));
-  if (skipBackupSignInBtn) skipBackupSignInBtn.addEventListener('click', () => beginRedirectWithBackup(null));
-  if (cancelBackupSignInBtn) cancelBackupSignInBtn.addEventListener('click', () => backupSignInDialog?.close());
 
   if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
 
@@ -242,20 +236,14 @@ if (!hasFirebaseConfig) {
       sayStatus('Memuat progress Google account…');
       try {
         const ref = doc(db, 'users', user.uid, 'questline', 'progress');
-        const pendingBackupText = sessionStorage.getItem('qlPendingBackup');
+        const pendingBackupText = localStorage.getItem('qlPendingCloudBackup');
         if (pendingBackupText) {
-          sessionStorage.removeItem('qlPendingBackup');
-          try {
-            const pendingBackup = parseBackup(JSON.stringify(JSON.parse(pendingBackupText)));
-            await setDoc(ref, {...pendingBackup, updatedAt:serverTimestamp()});
-            writeSnapshot(pendingBackup);
-            sayStatus('Backup restored and synced to ' + (user.displayName || user.email) + '.');
-            return;
-          } catch (error) {
-            console.error('Questline backup restore after sign-in failed:', error);
-            sayStatus('Could not restore the selected backup. Existing cloud progress was not replaced.');
-            return;
-          }
+          const pendingBackup = parseBackup(JSON.stringify(JSON.parse(pendingBackupText)));
+          await setDoc(ref, {...pendingBackup, updatedAt:serverTimestamp()});
+          writeSnapshot(pendingBackup);
+          localStorage.removeItem('qlPendingCloudBackup');
+          sayStatus('Backup restored and synced to ' + (user.displayName || user.email) + '.');
+          return;
         }
         const snapshot = await getDoc(ref);
         if (snapshot.exists()) {
