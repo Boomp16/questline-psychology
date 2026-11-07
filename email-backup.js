@@ -64,8 +64,20 @@ function requestService(action, extra = {}) {
   frame.name = 'questline-email-' + nonce;
   frame.title = 'Respons layanan email Questline';
   frame.style.cssText = 'position:fixed;width:1px;height:1px;left:-10px;bottom:0;border:0;opacity:0;pointer-events:none';
-  document.body.appendChild(frame);
-  pendingRequests.set(nonce, {action, source:frame.contentWindow});
+  const requestTimer = setTimeout(() => {
+    if (!pendingRequests.has(nonce)) return;
+    pendingRequests.delete(nonce);
+    frame.remove();
+    setProgressStatus('Layanan email tidak merespons. Periksa deployment Apps Script dan coba lagi.');
+  }, 25000);
+  pendingRequests.set(nonce, {action, source:frame.contentWindow, frame, requestTimer});
+  frame.addEventListener('load', () => {
+    const pending = pendingRequests.get(nonce);
+    if (!pending) return;
+    // Apps Script commonly redirects its web app response to a generated *.script.googleusercontent.com origin.
+    pending.lastFrameUrl = frame.contentWindow.location.href;
+  });
+  setProgressStatus(action === 'requestEmailCode' ? 'Menghubungi layanan email…' : 'Mengirim permintaan…');
   const form = document.createElement('form');
   form.method = 'post';
   form.action = EMAIL_BACKUP_URL;
@@ -118,11 +130,16 @@ if (progressDialog) progressDialog.addEventListener('click', event => { if (even
 if (localStorage.getItem(dismissedKey) !== '1') openProgressDialog();
 
 window.addEventListener('message', event => {
-  if (!['https://script.google.com','https://script.googleusercontent.com'].includes(event.origin) || event.data?.type !== 'questline-email-backup') return;
+  let responseHost = '';
+  try { responseHost = new URL(event.origin).hostname; } catch (_) { return; }
+  const trustedOrigin = responseHost === 'script.google.com' || responseHost === 'script.googleusercontent.com' || responseHost.endsWith('.script.googleusercontent.com');
+  if (!trustedOrigin || event.data?.type !== 'questline-email-backup') return;
   const {nonce,result} = event.data;
   const pending = pendingRequests.get(nonce);
   if (!pending || event.source !== pending.source) return;
+  clearTimeout(pending.requestTimer);
   pendingRequests.delete(nonce);
+  pending.frame.remove();
   if (result.status === 'codeSent') {
     if (codeStep) codeStep.hidden = false;
     if (codeInput) codeInput.focus();
