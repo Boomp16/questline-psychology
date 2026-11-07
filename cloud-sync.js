@@ -1,7 +1,7 @@
 /* Firebase optional Google sign-in + per-user Firestore progress storage.
    Replace firebaseConfig placeholders with this app's Firebase web config. */
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-app.js';
-import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
+import { getAuth, GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithRedirect, signOut } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js';
 
 const firebaseConfig = {
@@ -103,23 +103,16 @@ async function startGoogleSignIn(button) {
   }
   signInInProgress = true;
   if (button) button.setAttribute('aria-busy','true');
-  sayStatus('Opening Google sign-in…');
+  sayStatus('Redirecting to Google sign-in…');
   try {
-    await signInWithPopup(auth, new GoogleAuthProvider());
-    sessionStorage.setItem('qlCloudPromptDismissed', '1');
-    closeCloudPrompt();
+    await signInWithRedirect(auth, new GoogleAuthProvider());
   } catch (error) {
-    console.error('Google sign-in failed:', error.code, error.message, error);
+    console.error('Google sign-in redirect failed:', error.code, error.message, error);
     const code = error && error.code ? ' (' + error.code + ')' : '';
     const hint = error && error.code === 'auth/unauthorized-domain'
       ? ' Add the address bar domain to Firebase Authentication → Settings → Authorized domains.'
-      : error && error.code === 'auth/popup-blocked'
-        ? ' Allow pop-ups for this site and retry.'
-        : error && error.code === 'auth/web-storage-unsupported'
-          ? ' Brave privacy settings may block the sign-in window; allow cross-site cookies for Firebase or use the direct app link below.'
-          : ' Use the direct app link below to retry outside Blogger.';
-    sayStatus('Google sign-in did not complete' + code + '.' + hint);
-  } finally {
+      : ' Check the Firebase API key and Authentication setup, then try again.';
+    sayStatus('Google sign-in did not start' + code + '.' + hint);
     signInInProgress = false;
     if (button) button.removeAttribute('aria-busy');
   }
@@ -141,6 +134,11 @@ if (!hasFirebaseConfig) {
   auth = getAuth(app);
   db = getFirestore(app);
 
+  getRedirectResult(auth).catch(error => {
+    console.error('Google sign-in redirect result failed:', error.code, error.message, error);
+    const code = error && error.code ? ' (' + error.code + ')' : '';
+    sayStatus('Google sign-in did not complete' + code + '. Check Firebase Authentication settings and try again.');
+  });
 
   if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
 
