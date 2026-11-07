@@ -165,13 +165,13 @@ if (primaryEmailAction) {
     const account = getAccount();
     if (account?.status === 'verified') {
       const code = codeInput?.value.trim() || '';
-      if (!/^\\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
+      if (!/^\d{6}$/.test(code)) { setProgressStatus('Masukkan kode 6 digit dari email.'); return; }
       setProgressStatus('Memeriksa kode…');
       requestService('verifyEmailCode', {code});
       return;
     }
     const email = emailInput?.value.trim().toLowerCase() || '';
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setProgressStatus('Masukkan alamat email yang valid.'); return; }
     setProgressStatus('Mengirim kode verifikasi…');
     requestService('requestEmailCode');
   };
