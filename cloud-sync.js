@@ -17,6 +17,12 @@ const hasFirebaseConfig = !Object.values(firebaseConfig).some(value => value.sta
 const statusEl = document.querySelector('#cloudAccountStatus');
 const signInBtn = document.querySelector('#googleSignInBtn');
 const signOutBtn = document.querySelector('#googleSignOutBtn');
+const promptDialog = document.querySelector('#cloudPromptDialog');
+const promptSignInBtn = document.querySelector('#cloudPromptSignIn');
+const promptLocalBtn = document.querySelector('#cloudPromptLocal');
+const promptCloseBtn = document.querySelector('#closeCloudPrompt');
+const promptStatusEl = document.querySelector('#cloudPromptStatus');
+const launchPromptBtn = document.querySelector('#accountSyncBtn');
 let auth = null;
 let db = null;
 let suppressCloudWrite = false;
@@ -24,7 +30,23 @@ let saveTimer = null;
 
 function sayStatus(message) {
   if (statusEl) statusEl.textContent = message;
+  if (promptStatusEl) promptStatusEl.textContent = message;
 }
+
+function openCloudPrompt() {
+  if (promptDialog && !promptDialog.open) promptDialog.showModal();
+}
+
+function closeCloudPrompt() {
+  if (promptDialog && promptDialog.open) promptDialog.close();
+}
+
+if (launchPromptBtn) launchPromptBtn.addEventListener('click', openCloudPrompt);
+if (promptLocalBtn) promptLocalBtn.addEventListener('click', closeCloudPrompt);
+if (promptCloseBtn) promptCloseBtn.addEventListener('click', closeCloudPrompt);
+if (promptDialog) promptDialog.addEventListener('click', event => {
+  if (event.target === promptDialog) closeCloudPrompt();
+});
 
 function localSnapshot() {
   return {
@@ -69,8 +91,11 @@ function queueCloudSave() {
   }, 800);
 }
 
+if (promptSignInBtn) promptSignInBtn.addEventListener('click', () => signInBtn ? signInBtn.click() : sayStatus('Google sign-in button is not available.'));
+
 if (!hasFirebaseConfig) {
-  sayStatus('Belum tersambung. Tanpa Google sign-in, Questline tetap menyimpan progress di browser ini.');
+  sayStatus('Cloud sign-in is not configured yet. Continue without signing in, or ask the site admin to finish Firebase setup.');
+  openCloudPrompt();
   if (signInBtn) {
     signInBtn.addEventListener('click', () => sayStatus('Admin perlu menyelesaikan konfigurasi Firebase sebelum Google sign-in tersedia.'));
   }
@@ -81,24 +106,31 @@ if (!hasFirebaseConfig) {
 
   if (signInBtn) signInBtn.addEventListener('click', async () => {
     signInBtn.disabled = true;
+    if (promptSignInBtn) promptSignInBtn.disabled = true;
     try {
       await signInWithPopup(auth, new GoogleAuthProvider());
+      sessionStorage.setItem('qlCloudPromptDismissed', '1');
+      closeCloudPrompt();
     } catch (error) {
       console.error('Google sign-in failed:', error);
-      sayStatus('Google sign-in tidak berhasil. Progress lokal tetap tersedia; coba lagi atau lanjutkan tanpa masuk.');
+      sayStatus('Google sign-in failed. You can retry or continue without signing in.');
     } finally {
       signInBtn.disabled = false;
+      if (promptSignInBtn) promptSignInBtn.disabled = false;
     }
   });
-  if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).catch(console.error));
+  if (signOutBtn) signOutBtn.addEventListener('click', () => signOut(auth).then(() => { sessionStorage.removeItem('qlCloudPromptDismissed'); openCloudPrompt(); }).catch(error => { console.error(error); sayStatus('Could not sign out. Try again.'); }));
 
   onAuthStateChanged(auth, async user => {
     if (!user) {
       if (signInBtn) signInBtn.hidden = false;
       if (signOutBtn) signOutBtn.hidden = true;
-      sayStatus('Tidak masuk. Progress hanya tersimpan di browser ini.');
+      sayStatus('Not signed in. Progress stays in this browser only.');
+      if (!sessionStorage.getItem('qlCloudPromptDismissed')) openCloudPrompt();
       return;
     }
+    sessionStorage.setItem('qlCloudPromptDismissed', '1');
+    closeCloudPrompt();
     if (signInBtn) signInBtn.hidden = true;
     if (signOutBtn) signOutBtn.hidden = false;
     if (user) {
