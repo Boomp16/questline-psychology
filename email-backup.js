@@ -162,7 +162,6 @@ document.addEventListener('click', event => {
   if (event.target.closest('#cloudPromptLocal')) skipEmailBackup(event);
 }, true);
 if (progressDialog) progressDialog.addEventListener('click', event => { if (event.target === progressDialog) closeProgressDialog(); });
-if (localStorage.getItem(dismissedKey) !== '1') openProgressDialog();
 
 window.addEventListener('message', event => {
   let responseHost = '';
